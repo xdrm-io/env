@@ -87,9 +87,8 @@ func ReadStruct(v any) error {
 			if decodedValue.Kind() != reflect.Slice {
 				return fmt.Errorf("field %q: %w: cannot convert to slice", field.Name, ErrFieldDecode)
 			}
-			if fieldValue.IsNil() {
-				fieldValue.Set(reflect.MakeSlice(field.Type, decodedValue.Len(), decodedValue.Len()))
-			}
+			// Always create a new slice with the correct size to avoid index out of bounds
+			fieldValue.Set(reflect.MakeSlice(field.Type, decodedValue.Len(), decodedValue.Len()))
 
 			for i := 0; i < decodedValue.Len(); i++ {
 				fieldValue.Index(i).Set(decodedValue.Index(i))

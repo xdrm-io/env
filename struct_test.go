@@ -413,3 +413,22 @@ func TestReadStruct(t *testing.T) {
 		})
 	}
 }
+
+// Test case for slice size mismatch bug fix
+func TestReadStruct_SliceSizeMismatch(t *testing.T) {
+	type testStruct struct {
+		Tags []string `env:"TAGS"`
+	}
+
+	// Pre-initialize with different size to trigger the bug
+	config := &testStruct{
+		Tags: []string{"existing", "values", "that", "should", "be", "replaced"},
+	}
+
+	os.Clearenv()
+	os.Setenv("TAGS", "new,values")
+
+	err := env.ReadStruct(config)
+	require.NoError(t, err)
+	require.Equal(t, []string{"new", "values"}, config.Tags)
+}
