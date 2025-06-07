@@ -80,11 +80,17 @@ func ReadStruct(v any) error {
 		if err != nil {
 			return fmt.Errorf("field %q: %w", field.Name, err)
 		}
+
+		// skip decoded nil (not set and not required)
+		if decoded == nil {
+			continue
+		}
+
 		decodedValue := reflect.ValueOf(decoded)
 
 		switch field.Type.Kind() {
 		case reflect.Slice:
-			if decodedValue.Kind() != reflect.Slice {
+			if !decodedValue.IsValid() || decodedValue.Kind() != reflect.Slice {
 				return fmt.Errorf("field %q: %w: cannot convert to slice", field.Name, ErrFieldDecode)
 			}
 			// Always create a new slice with the correct size to avoid index out of bounds
@@ -97,9 +103,13 @@ func ReadStruct(v any) error {
 			if fieldValue.IsNil() {
 				fieldValue.Set(reflect.New(field.Type.Elem()))
 			}
-			fieldValue.Elem().Set(decodedValue)
+			if decodedValue.IsValid() {
+				fieldValue.Elem().Set(decodedValue)
+			}
 		default:
-			fieldValue.Set(decodedValue)
+			if decodedValue.IsValid() {
+				fieldValue.Set(decodedValue)
+			}
 		}
 	}
 
@@ -131,7 +141,8 @@ func decodeField(field reflect.StructField) (any, error) {
 
 	typeName := field.Type.String()
 	if field.Type.Kind() == reflect.Ptr && field.Type.Elem().Kind() != reflect.Invalid {
-		typeName = `*` + field.Type.Elem().String()
+		// For pointers, use the underlying type's decoder
+		typeName = field.Type.Elem().String()
 	}
 	if field.Type.Kind() == reflect.Slice && field.Type.Elem().Kind() != reflect.Invalid {
 		typeName = `[]` + field.Type.Elem().String()

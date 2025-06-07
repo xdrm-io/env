@@ -432,3 +432,61 @@ func TestReadStruct_SliceSizeMismatch(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"new", "values"}, config.Tags)
 }
+
+// Test case for nil decoded value bug fix
+func TestReadStruct_NilDecodedValue(t *testing.T) {
+	type testStruct struct {
+		OptionalField string `env:"OPTIONAL_FIELD"`
+		RequiredField string `env:"REQUIRED_FIELD,required"`
+	}
+
+	config := &testStruct{}
+
+	os.Clearenv()
+	os.Setenv("REQUIRED_FIELD", "required_value")
+	// OPTIONAL_FIELD is not set
+
+	err := env.ReadStruct(config)
+	require.NoError(t, err)
+	require.Equal(t, "", config.OptionalField) // Should remain empty/zero value
+	require.Equal(t, "required_value", config.RequiredField)
+}
+
+// Test case for pointer fields with nil values
+func TestReadStruct_PointerNilValue(t *testing.T) {
+	type testStruct struct {
+		OptionalPtr *string `env:"OPTIONAL_PTR"`
+		RequiredPtr *string `env:"REQUIRED_PTR,required"`
+	}
+
+	config := &testStruct{}
+
+	os.Clearenv()
+	os.Setenv("REQUIRED_PTR", "required_value")
+	// OPTIONAL_PTR is not set
+
+	err := env.ReadStruct(config)
+	require.NoError(t, err)
+	require.Nil(t, config.OptionalPtr) // Should remain nil
+	require.NotNil(t, config.RequiredPtr)
+	require.Equal(t, "required_value", *config.RequiredPtr)
+}
+
+// Test case for slice fields with nil values
+func TestReadStruct_SliceNilValue(t *testing.T) {
+	type testStruct struct {
+		OptionalSlice []string `env:"OPTIONAL_SLICE"`
+		RequiredSlice []string `env:"REQUIRED_SLICE,required"`
+	}
+
+	config := &testStruct{}
+
+	os.Clearenv()
+	os.Setenv("REQUIRED_SLICE", "val1,val2")
+	// OPTIONAL_SLICE is not set
+
+	err := env.ReadStruct(config)
+	require.NoError(t, err)
+	require.Nil(t, config.OptionalSlice) // Should remain nil
+	require.Equal(t, []string{"val1", "val2"}, config.RequiredSlice)
+}
